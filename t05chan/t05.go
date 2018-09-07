@@ -1,5 +1,10 @@
 package main
 
+/*
+	select 的用法,多通道chan的选择,
+注意 default的用途
+*/
+
 import (
 	"fmt" // A package in the Go standard library.
 	//	"io/ioutil" // Implements some I/O utility functions.
