@@ -1,5 +1,17 @@
 package main
 
+/*
+边写边读成的chan
+用于作 消息缓冲池使用,用以解决kafka连接过多问题
+此为demo,
+make(chan int,len)时不占用内容
+只有在 c<-<data>操作时,才会战胜内容,弹出出,也不再占用内容
+使用len判断chan中元素数量(但并不准确,只能作大要的数据),
+只能用于判断是否接近满值的情况
+demo中显示,取到数据后,len(c)和<-c那一廖的值是不同步 的,
+此后,可以已进行了n步操作.
+
+*/
 import (
 	//	"github.com/gin-gonic/gin"
 	//"myblog/g/xbind"
