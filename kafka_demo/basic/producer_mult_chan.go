@@ -1,32 +1,47 @@
 package main
 
+//
+//在kafaka连接资源有限的情况下，通过有限的go roution发送消息
+// 缺点：有缓冲区，可能在机器发现问题时消息未发出，
+// 优点：不需要等等，直接发送
+//
 import (
+	"flag"
 	"fmt"
 	"github.com/Shopify/sarama"
 	kingpin "gopkg.in/alecthomas/kingpin.v2"
+	//	"os"
 	"sync"
 	"time"
 )
 
-var (
-	pool chan =make(char String,20)
-)
+var wg sync.WaitGroup
 
 func main() {
-	//
-	iLimit := 60
-	iLimit_sub := 10000 * 5
+
+	//	if len(os.Args) < 2 {
+	//		fmt.Println("args is p1 and p2")
+	fmt.Println("----args----", flag.Args(), "###  len:", len(flag.Args()))
+	//		return
+	//	}
+
+	iLimit := flag.Int("c", 5, "p1为goroutine count")
+	iLimit_sub := flag.Int("n", 10000*5, "线程发送消息数量")
+	flag.Parse()
+	fmt.Println("----args----", flag.Args(), "###  len:", len(flag.Args()))
+
 	t1 := time.Now()
-
-	for i := 0; i < iLimit; i++ {
-
-		go run(i, iLimit_sub)
+	for i := 0; i < *iLimit; i++ {
+		wg.Add(1)
+		go run(i, *iLimit_sub)
 	}
 	wg.Wait()
-	fmt.Println("seconds:", (time.Now().Unix() - t1.Unix()))
+	fmt.Println("#### count:", (*iLimit)*(*iLimit_sub))
+	fmt.Println("all ######seconds:", (time.Now().Unix() - t1.Unix()))
 }
 
 func run(routine_id int, iLimit int) {
+	defer wg.Add(-1)
 	var (
 		brokerList = kingpin.Flag("brokerList", "List of brokers to connect").Default("localhost:9092").Strings()
 		topic      = kingpin.Flag("topic", "Topic name").Default("test").String()
@@ -50,9 +65,10 @@ func run(routine_id int, iLimit int) {
 	}()
 
 	t1 := time.Now()
-	fmt.Println("------------begin---------time--", t1)
+
 	for i := 0; i < iLimit; i++ {
-		info := fmt.Sprintf("id: %d message send %d", routine_id, i)
+		t1 := time.Now()
+		info := fmt.Sprintf("id: %d message send %d time: %d-%d-%d %d:%d:%d", routine_id, i, t1.Year(), t1.Month(), t1.Day(), t1.Hour(), t1.Minute(), t1.Second())
 		msg := &sarama.ProducerMessage{
 			Topic: *topic,
 			Value: sarama.StringEncoder(info),
@@ -65,8 +81,7 @@ func run(routine_id int, iLimit int) {
 
 		//		k = partition + offset
 	}
-	//	fmt.Printf("Message is stored in topic(%s)/partition(%d)/offset(%d)\n", *topic, partition, offset)
 
-	fmt.Println("-------time--", time.Now(),
-		"\n\rms:", (time.Now().Unix() - t1.Unix()), "  loop:", iLimit)
+	fmt.Println("finished-->sub:", routine_id, "--second:", (time.Now().Unix() - t1.Unix()))
+
 }
