@@ -4,9 +4,12 @@ import (
 	"fmt"
 )
 
-/* demo variables declare*/
+/*
+ demo variables declare
+*/
 
 func main() {
+	//type 1
 	var (
 		a1 int32
 		a2 string
@@ -17,18 +20,20 @@ func main() {
 	fmt.Println("hello worldaaaaaaa")
 	fmt.Println("step 1")
 
-	//declare 1,classcial
+	//type 2
 	var a int32 = 4
 	fmt.Println(a)
-	//common usages
+	//type 3
 	b := 5
 	fmt.Println(b)
-	//declare mult
+	//type 4
 	var c, d int32 = 5, 4
 	fmt.Println(d, c)
-	//empty declare
+	//type 5
 	var e int32
 	e = 5
 	fmt.Println(e)
-
+	//type 6
+	var c5 = 5
+	fmt.Println(c5)
 }
