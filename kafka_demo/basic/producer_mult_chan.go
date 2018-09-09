@@ -6,7 +6,7 @@ package main
 // 优点：不需要等等，直接发送
 //
 import (
-	"flag"
+	//	"flag"
 	"fmt"
 	"github.com/Shopify/sarama"
 	kingpin "gopkg.in/alecthomas/kingpin.v2"
@@ -16,28 +16,33 @@ import (
 )
 
 var wg sync.WaitGroup
+var c chan *string
 
 func main() {
+	c = make(chan *string, 100000)
 
-	//	if len(os.Args) < 2 {
-	//		fmt.Println("args is p1 and p2")
-	fmt.Println("----args----", flag.Args(), "###  len:", len(flag.Args()))
-	//		return
-	//	}
-
-	iLimit := flag.Int("c", 5, "p1为goroutine count")
-	iLimit_sub := flag.Int("n", 10000*5, "线程发送消息数量")
-	flag.Parse()
-	fmt.Println("----args----", flag.Args(), "###  len:", len(flag.Args()))
+	iLimit := 5
+	iLimit_sub := 10000 * 5
 
 	t1 := time.Now()
-	for i := 0; i < *iLimit; i++ {
+	for i := 0; i < iLimit; i++ {
 		wg.Add(1)
-		go run(i, *iLimit_sub)
+		go run(i, iLimit_sub)
 	}
-	wg.Wait()
-	fmt.Println("#### count:", (*iLimit)*(*iLimit_sub))
+
+	//-send-----------------
+	for i := 0; i < iLimit*iLimit_sub; i++ {
+		//减少等待
+		go func(id int) {
+			info := fmt.Sprintf("data_id: %d message send!", id)
+			//push to chan
+			c <- &info
+		}(i)
+	}
+	fmt.Println("#### count:", iLimit*iLimit_sub)
 	fmt.Println("all ######seconds:", (time.Now().Unix() - t1.Unix()))
+
+	wg.Wait()
 }
 
 func run(routine_id int, iLimit int) {
@@ -66,22 +71,48 @@ func run(routine_id int, iLimit int) {
 
 	t1 := time.Now()
 
-	for i := 0; i < iLimit; i++ {
-		t1 := time.Now()
-		info := fmt.Sprintf("id: %d message send %d time: %d-%d-%d %d:%d:%d", routine_id, i, t1.Year(), t1.Month(), t1.Day(), t1.Hour(), t1.Minute(), t1.Second())
-		msg := &sarama.ProducerMessage{
-			Topic: *topic,
-			Value: sarama.StringEncoder(info),
+	//partition, offset, err := producer.SendMessage(ms
+	//		for str := range c {
+	total := 0
+	for {
+		//		fmt.Println("sub:", routine_id, "----before selecct")
+		timeout := make(chan bool, 1)
+		go func() {
+			time.Sleep(time.Second * 10) // sleep one second
+			timeout <- true
+		}()
+
+		skip := false
+		select {
+		case str, ok := <-c:
+			if !ok {
+				break
+			}
+			total += 1
+			if total%1000 == 0 {
+				fmt.Println("sbu: ", routine_id, "---total:", total)
+			}
+			//			fmt.Println("sub:", routine_id, "  total:", total)
+			info := fmt.Sprintf("subid:%d c len:%d %s", routine_id, len(c), *str)
+			msg := &sarama.ProducerMessage{
+				Topic: *topic,
+				Value: sarama.StringEncoder(info),
+			}
+
+			_, _, err := producer.SendMessage(msg)
+			if err != nil {
+				panic(err)
+			}
+		case <-timeout:
+			fmt.Println("sub:", routine_id, "---time out")
+			skip = true
+			break
+		} //select
+		if skip {
+			break
 		}
-		//partition, offset, err := producer.SendMessage(msg)
-		_, _, err := producer.SendMessage(msg)
-		if err != nil {
-			panic(err)
-		}
+	} //for
 
-		//		k = partition + offset
-	}
-
-	fmt.Println("finished-->sub:", routine_id, "--second:", (time.Now().Unix() - t1.Unix()))
-
+	//		k = partition + offset
+	fmt.Println("finished-->sub:", routine_id, "--second:", (time.Now().Unix() - t1.Unix()), "---all count:----", total)
 }
