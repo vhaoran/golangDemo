@@ -16,13 +16,13 @@ import (
 )
 
 var wg sync.WaitGroup
-var c chan *string
+var c chan string
 
 func main() {
-	c = make(chan *string, 10000)
+	c = make(chan string, 20000)
 
 	iLimit := 1
-	iLimit_sub := 10000 * 80
+	iLimit_sub := 10000 * 800
 
 	t1 := time.Now()
 	for i := 0; i < iLimit; i++ {
@@ -31,17 +31,16 @@ func main() {
 	}
 
 	//-send-----------------
+
 	for i := 0; i < iLimit*iLimit_sub; i++ {
-		//减少等待
-		//		go func(id int) {
 		info := fmt.Sprintf("id: %d", i)
-		//push to chan
-		c <- &info
-		//		}(i)
+		c <- info
 	}
+	fmt.Println("------after setData-------------------")
+	wg.Wait()
 	fmt.Println("#### count:", iLimit*iLimit_sub)
 	fmt.Println("all ######seconds:", (time.Now().Unix() - t1.Unix()))
-	wg.Wait()
+
 }
 
 func run(routine_id int, iLimit int) {
@@ -68,42 +67,28 @@ func run(routine_id int, iLimit int) {
 		}
 	}()
 
-	t1 := time.Now()
-	total := 0
 	for {
-		timeout := make(chan bool)
-		go wait(timeout, 1000*5)
-		lstMsg := get_messages(topic, c)
-		if lstMsg == nil {
-			break
+		ok := do_send(producer, topic, routine_id)
+		if !ok {
+			time.Sleep(time.Millisecond * 10)
 		}
-
-		fmt.Println("send queen: ", routine_id, "count:", len(lstMsg))
-		if len(lstMsg) > 0 {
-			err = producer.SendMessages(lstMsg)
-			fmt.Println("sub: ", routine_id, "send successful count:", len(lstMsg))
-
-			if err != nil {
-				fmt.Println("###############################sendError######")
-				panic(err)
-			}
-		} //if
 	} //for
 	//		k = partition + offset
-	fmt.Println("finished-->sub:", routine_id, "--second:", (time.Now().Unix() - t1.Unix()), "---all count:----", total)
+	fmt.Println("finished-->sub:", routine_id)
 }
 
-func get_messages(topic *string, c <-chan *string) (lstMsg []*sarama.ProducerMessage) {
-	fmt.Println("### enter get_messages ###")
+func get_messages(topic *string, c <-chan string) (lstMsg []*sarama.ProducerMessage) {
+	//	fmt.Println("### enter get_messages ###")
 	lstMsg = []*sarama.ProducerMessage{}
-	for i := 0; i < 5000; i++ {
-		timeout := make(chan bool)
-		go wait(timeout, 10)
+	timeout := make(chan bool)
+
+	for i := 0; i < 10000; i++ {
+		go wait(timeout, 100)
 		select {
 		case s := <-c:
 			msg := &sarama.ProducerMessage{
 				Topic: *topic,
-				Value: sarama.StringEncoder(*s)}
+				Value: sarama.StringEncoder(s)}
 			lstMsg = append(lstMsg, msg)
 		case <-timeout:
 			goto OUTER
@@ -111,15 +96,33 @@ func get_messages(topic *string, c <-chan *string) (lstMsg []*sarama.ProducerMes
 	} //for
 OUTER:
 	if len(lstMsg) > 0 {
-		fmt.Println("get_message is return--count:", len(lstMsg))
+		//	fmt.Println("get_message is return--count:", len(lstMsg))
 		return lstMsg
 	}
 
-	fmt.Println("get _message 00000000000")
+	//	fmt.Println("get _message 00000000000")
 	return nil
 }
 
 func wait(timeout chan<- bool, ms time.Duration) {
 	time.Sleep(time.Millisecond * ms)
 	timeout <- true
+}
+
+func do_send(producer sarama.SyncProducer, topic *string, routine_id int) bool {
+	lstMsg := get_messages(topic, c)
+	if lstMsg == nil {
+		return false
+	}
+
+	if len(lstMsg) > 0 {
+		err := producer.SendMessages(lstMsg)
+		if err != nil {
+			fmt.Println("###############################sendError######")
+			panic(err)
+		}
+		fmt.Println("send queen: ", routine_id, "count:", len(lstMsg))
+	}
+
+	return true
 }
