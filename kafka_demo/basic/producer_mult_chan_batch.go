@@ -21,8 +21,8 @@ var c chan string
 func main() {
 	c = make(chan string, 20000)
 
-	iLimit := 1
-	iLimit_sub := 10000 * 800
+	iLimit := 2
+	iLimit_sub := 10000 * 10
 
 	t1 := time.Now()
 	for i := 0; i < iLimit; i++ {
@@ -53,6 +53,7 @@ func run(routine_id int, iLimit int) {
 
 	kingpin.Parse()
 	config := sarama.NewConfig()
+	//	config.Producer.RequiredAcks = sarama.WaitForAll
 	config.Producer.RequiredAcks = sarama.WaitForAll
 	config.Producer.Retry.Max = *maxRetry
 	config.Producer.Return.Successes = true
