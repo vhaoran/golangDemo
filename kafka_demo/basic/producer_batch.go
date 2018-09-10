@@ -32,30 +32,28 @@ func main() {
 
 	t1 := time.Now()
 	fmt.Println("------------begin---------time--", t1)
-	k := 0
-	iLimit := 100000 * 5
-	lstMsg := []*sarama.ProducerMessage{}
-	for i := 0; i < iLimit; i++ {
-		info := fmt.Sprintf("message send %d", i)
-		msg := &sarama.ProducerMessage{
-			Topic: *topic,
-			Value: sarama.StringEncoder(info),
+	k := 0              //counter
+	h := 1000           //outer llops
+	iLimit := 10000 * 1 //send each times
+
+	for j := 0; j < h; j++ {
+		lstMsg := []*sarama.ProducerMessage{}
+		for i := 0; i < iLimit; i++ {
+			info := fmt.Sprintf("message send %d", i)
+			msg := &sarama.ProducerMessage{
+				Topic: *topic,
+				Value: sarama.StringEncoder(info),
+			}
+			lstMsg = append(lstMsg, msg)
+			k++
+		} //first for
+
+		err = producer.SendMessages(lstMsg)
+		if err != nil {
+			panic(err)
 		}
-		//partition, offset, err := producer.SendMessage(msg)
-		lstMsg = append(lstMsg, msg)
-		k++
 	}
-
-	err = producer.SendMessages(lstMsg)
-	if err != nil {
-		panic(err)
-	}
-
-	//		k = partition + offset
-
-	//	fmt.Printf("Message is stored in topic(%s)/partition(%d)/offset(%d)\n", *topic, partition, offset)
-
-	fmt.Println("-------time--", time.Now(),
-		"\n\rms:", (time.Now().Unix() - t1.Unix()), "  loop:", iLimit)
+	//not to here
+	fmt.Println("ms:", (time.Now().Unix() - t1.Unix()), "  loop:", iLimit, " all count:", k)
 
 }

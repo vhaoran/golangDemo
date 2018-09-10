@@ -6,6 +6,7 @@ package main
 // 优点：不需要等等，直接发送
 //
 import (
+
 	//	"flag"
 	"fmt"
 	"github.com/Shopify/sarama"
@@ -16,13 +17,13 @@ import (
 )
 
 var wg sync.WaitGroup
-var c chan string
+var c chan *string
 
 func main() {
-	c = make(chan string, 20000)
+	c = make(chan *string, 10000)
 
 	iLimit := 2
-	iLimit_sub := 10000 * 10
+	iLimit_sub := 10000 * 1000
 
 	t1 := time.Now()
 	for i := 0; i < iLimit; i++ {
@@ -34,7 +35,7 @@ func main() {
 
 	for i := 0; i < iLimit*iLimit_sub; i++ {
 		info := fmt.Sprintf("id: %d", i)
-		c <- info
+		c <- &info
 	}
 	fmt.Println("------after setData-------------------")
 	wg.Wait()
@@ -68,41 +69,10 @@ func run(routine_id int, iLimit int) {
 		}
 	}()
 
-	for {
-		ok := do_send(producer, topic, routine_id)
-		if !ok {
-			time.Sleep(time.Millisecond * 10)
-		}
-	} //for
+	do_send(producer, topic, routine_id)
 	//		k = partition + offset
+	//not to here
 	fmt.Println("finished-->sub:", routine_id)
-}
-
-func get_messages(topic *string, c <-chan string) (lstMsg []*sarama.ProducerMessage) {
-	//	fmt.Println("### enter get_messages ###")
-	lstMsg = []*sarama.ProducerMessage{}
-	timeout := make(chan bool)
-
-	for i := 0; i < 10000; i++ {
-		go wait(timeout, 100)
-		select {
-		case s := <-c:
-			msg := &sarama.ProducerMessage{
-				Topic: *topic,
-				Value: sarama.StringEncoder(s)}
-			lstMsg = append(lstMsg, msg)
-		case <-timeout:
-			goto OUTER
-		} //select
-	} //for
-OUTER:
-	if len(lstMsg) > 0 {
-		//	fmt.Println("get_message is return--count:", len(lstMsg))
-		return lstMsg
-	}
-
-	//	fmt.Println("get _message 00000000000")
-	return nil
 }
 
 func wait(timeout chan<- bool, ms time.Duration) {
@@ -110,20 +80,26 @@ func wait(timeout chan<- bool, ms time.Duration) {
 	timeout <- true
 }
 
-func do_send(producer sarama.SyncProducer, topic *string, routine_id int) bool {
-	lstMsg := get_messages(topic, c)
-	if lstMsg == nil {
-		return false
-	}
+func do_send(producer sarama.SyncProducer, topic *string, routine_id int) {
+	lstMsg := []*sarama.ProducerMessage{}
+	sub_count := 10000 * 10
+	i := 0
+	for s := range c {
+		msg := &sarama.ProducerMessage{
+			Topic: *topic,
+			Value: sarama.StringEncoder(*s)}
+		lstMsg = append(lstMsg, msg)
 
-	if len(lstMsg) > 0 {
-		err := producer.SendMessages(lstMsg)
-		if err != nil {
-			fmt.Println("###############################sendError######")
-			panic(err)
+		if len(lstMsg) >= sub_count {
+			i = i + sub_count
+			err := producer.SendMessages(lstMsg)
+			if err != nil {
+				fmt.Println("###############################sendError######")
+				panic(err)
+			}
+			fmt.Println("send queen: ", routine_id, "lst:", len(lstMsg), "  all count:", i/10000, "wan len(c)", len(c))
+			lstMsg = []*sarama.ProducerMessage{}
 		}
-		fmt.Println("send queen: ", routine_id, "count:", len(lstMsg))
-	}
+	} //for
 
-	return true
 }

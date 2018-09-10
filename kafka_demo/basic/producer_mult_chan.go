@@ -19,10 +19,10 @@ var wg sync.WaitGroup
 var c chan *string
 
 func main() {
-	c = make(chan *string, 100000)
+	c = make(chan *string, 10000)
 
-	iLimit := 5
-	iLimit_sub := 10000 * 5
+	iLimit := 3
+	iLimit_sub := 10000 * 50
 
 	t1 := time.Now()
 	for i := 0; i < iLimit; i++ {
@@ -33,11 +33,11 @@ func main() {
 	//-send-----------------
 	for i := 0; i < iLimit*iLimit_sub; i++ {
 		//减少等待
-		go func(id int) {
-			info := fmt.Sprintf("data_id: %d message send!", id)
-			//push to chan
-			c <- &info
-		}(i)
+		//		go func(id int) {
+		info := fmt.Sprintf("data_id: %d message send!", i)
+		//push to chan
+		c <- &info
+		//		}(i)
 	}
 	fmt.Println("#### count:", iLimit*iLimit_sub)
 	fmt.Println("all ######seconds:", (time.Now().Unix() - t1.Unix()))
