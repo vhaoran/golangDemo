@@ -13,21 +13,8 @@ demo中显示,取到数据后,len(c)和<-c那一廖的值是不同步 的,
 
 */
 import (
-	//	"github.com/gin-gonic/gin"
-	//"myblog/g/xbind"
-	//	"myblog/db"
-	//"log"
 	"fmt"
-	//"strconv"
-	//"strings"
-	//"reflect"
 	"time"
-	//	"net/http"
-	//	"bytes"
-	//	"encoding/binary"
-	//	"github.com/widuu/goini"
-	//      _ "github.com/go-sql-driver/mysql"
-	//      "database/sql/driver"
 )
 
 func main() {
@@ -41,6 +28,7 @@ func main() {
 			select {
 			case z := <-c:
 				fmt.Println("---", z, "--len", len(c))
+				fmt.Println("-- cap:", cap(c), " len:", len(c))
 			}
 		}
 	}()
@@ -53,7 +41,7 @@ func main() {
 	for i := 0; i < limit; i++ {
 		var k int64 = int64(i)
 		c <- k
-		fmt.Println("len:", len(c))
+		fmt.Println("len:", len(c), " cap:", cap(c))
 	}
 
 	time.Sleep(time.Second * 10)
